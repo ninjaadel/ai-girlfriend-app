@@ -16,7 +16,7 @@ app.add_middleware(CORSMiddleware,
                    )
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = "ai-girlfirend"
+MODEL_NAME = "ai-girlfriend:latest"
 
 
 class Message (BaseModel):
@@ -33,19 +33,27 @@ SYSTEM_PROMPT = {
     "content": "Sen empati yeteneği yüksek, asla trip atmayan, anlayışlı, esprili ve tatlı bir kız arkadaşsın."
 }
 
-app.get("/")
+@app.get("/")
 def read_root():
         return {"status": "backend çalışıyor"}
 
 
-app.post("/api/chat")
+@app.post("/api/chat")
 async def chat(request: ChatRequest):
-        payload = {
-            "model": MODEL_NAME,
-            "messages": [SYSTEM_PROMPT] + [m.model_dump() for m in request.messages],
-            "stream": False
-        }
-        response = requests.post(OLLAMA_URL , json=payload)
+    payload = {
+        "model": MODEL_NAME,
+        "messages": [SYSTEM_PROMPT] + [m.model_dump() for m in request.messages],
+        "stream": False
+    }
+    
+    try:
+        response = requests.post(OLLAMA_URL, json=payload)
         data = response.json()
-        reply = data["message"]["content"]
-        return reply
+        
+        if "error" in data:
+            return {"error": f"Ollama Hatası: {data['error']}"}
+            
+        reply = data.get("message", {}).get("content", "Yanıt alınamadı.")
+        return {"response": reply}
+    except Exception as e:
+        return {"error": f"Bağlantı hatası: {str(e)}"}
